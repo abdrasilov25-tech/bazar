@@ -95,7 +95,7 @@ class _HomePageState extends State<HomePage> {
                 right: 16,
                 child: TextField(
                   decoration: InputDecoration(
-                    hintText: 'Поиск товаров...',
+                    hintText: 'что ищете?',
                     hintStyle: TextStyle(color: Colors.white70),
                     prefixIcon: Icon(Icons.search, color: Colors.white70),
                     filled: true,
@@ -112,18 +112,54 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 30),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'снизу ознакомьтесь с категориями bazar',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.black,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 20),
           Expanded(
             child: BlocBuilder<MarketCubit, List<MarketCategory>>(
               builder: (context, categories) {
-                return Column(
+                return GridView.count(
+                  crossAxisCount: 2,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  childAspectRatio: 0.6,
                   children: categories.map((category) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 15),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, category.route);
-                        },
-                        child: Text(category.title),
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(context, category.route);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue.shade100,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            category.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),

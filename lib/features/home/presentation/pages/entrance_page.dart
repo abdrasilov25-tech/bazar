@@ -12,6 +12,8 @@ class _EntrancePageState extends State<EntrancePage>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
+  bool _showBasket = false;
+  double _dragDistance = 0.0;
 
   @override
   void initState() {
@@ -43,13 +45,9 @@ class _EntrancePageState extends State<EntrancePage>
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.blue.shade300,
-              Colors.blue.shade600,
-            ],
+          image: DecorationImage(
+            image: AssetImage("assets/images/shmot.png"),
+            fit: BoxFit.cover,
           ),
         ),
         child: Center(
@@ -62,7 +60,7 @@ class _EntrancePageState extends State<EntrancePage>
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: Image.asset(
-                    "assets/images/background.png",
+                    "assets/images/rynok.png",
                     width: double.infinity,
                     height: 300,
                     fit: BoxFit.cover,
@@ -71,28 +69,52 @@ class _EntrancePageState extends State<EntrancePage>
               ),
               const SizedBox(height: 60),
               // Animated text
-              ScaleTransition(
-                scale: _scaleAnimation,
-                child: FadeTransition(
-                  opacity: _opacityAnimation,
-                  child: Text(
-                    'к покупкам',
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 48,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withOpacity(0.5),
-                              blurRadius: 8,
-                              offset: const Offset(2, 2),
-                            ),
-                          ],
-                        ),
+              GestureDetector(
+                onHorizontalDragStart: (details) {
+                  _dragDistance = 0.0;
+                },
+                onHorizontalDragUpdate: (details) {
+                  _dragDistance += details.delta.dx;
+                },
+                onHorizontalDragEnd: (details) {
+                  if (_dragDistance > 50) { // Threshold for swipe right
+                    setState(() => _showBasket = true);
+                  }
+                },
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: FadeTransition(
+                    opacity: _opacityAnimation,
+                    child: Text(
+                      'к покупкам',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 48,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.5),
+                                blurRadius: 8,
+                                offset: const Offset(2, 2),
+                              ),
+                            ],
+                          ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 20),
+              if (_showBasket)
+                AnimatedOpacity(
+                  opacity: _showBasket ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 500),
+                  child: Icon(
+                    Icons.shopping_cart,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+              const SizedBox(height: 30),
               // Arrow button
               GestureDetector(
                 onTap: () {
