@@ -5,12 +5,12 @@ class MarketRepositoryImpl implements MarketRepository {
   @override
   Future<List<MarketCategory>> getCategories() async {
     return [
-      MarketCategory(title: "Продукты", route: "/products"),
-      MarketCategory(title: "Мир рыбака", route: "/fishing"),
-      MarketCategory(title: "Одежда", route: "/clothing"),
-      MarketCategory(title: "Зайза(пункт обмена валют)", route: "/zayza"),
-      MarketCategory(title: "kaspi kz(банкомат)", route: "/kaspi"),
-      MarketCategory(title: "smart(сервисный центр)", route: "/smart"),
+      MarketCategory(title: "Продукты", route: "/products", imagePath: "assets/images/prod.png"),
+      MarketCategory(title: "Мир рыбака", route: "/fishing", imagePath: "assets/images/ryba.png"),
+      MarketCategory(title: "Одежда", route: "/clothing", imagePath: "assets/images/koft.png"),
+      MarketCategory(title: "Зайза", route: "/zayza", imagePath: "assets/images/valut.png"),
+      MarketCategory(title: "kaspi kz", route: "/kaspi", imagePath: "assets/images/kaspi.png"),
+      MarketCategory(title: "smart", route: "/smart", imagePath: "assets/images/smart.png"),
     ];
   }
 }

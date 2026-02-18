@@ -115,7 +115,7 @@ class _HomePageState extends State<HomePage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'снизу ознакомьтесь с категориями bazar',
+              'ознакомьтесь с категориями bazar',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Colors.black,
                     fontWeight: FontWeight.w500,
@@ -129,18 +129,17 @@ class _HomePageState extends State<HomePage> {
                 return GridView.count(
                   crossAxisCount: 2,
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  childAspectRatio: 0.6,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  childAspectRatio: 0.8,
                   children: categories.map((category) {
                     return GestureDetector(
                       onTap: () {
                         Navigator.pushNamed(context, category.route);
                       },
                       child: Container(
-                        margin: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: Colors.blue.shade100,
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.2),
@@ -149,16 +148,40 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
-                        child: Center(
-                          child: Text(
-                            category.title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            ClipOval(
+                              child: Image.asset(
+                                category.imagePath,
+                                fit: BoxFit.cover,
+                              ),
                             ),
-                          ),
+                            Positioned(
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.4),
+                                  borderRadius: const BorderRadius.only(
+                                    bottomLeft: Radius.circular(50),
+                                    bottomRight: Radius.circular(50),
+                                  ),
+                                ),
+                                child: Text(
+                                  category.title,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
