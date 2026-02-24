@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:bazar/features/home/data/repositories/market_repository_impl.dart';
 import 'package:bazar/features/home/presentation/cubit/market_cubit.dart';
 import 'package:bazar/core/routes/app_router.dart';
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   final repository = MarketRepositoryImpl();      // Data
   final useCase = GetMarketCategories(repository); // Domain
 
@@ -33,5 +35,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-
