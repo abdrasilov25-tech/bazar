@@ -11,13 +11,13 @@ class AppSession extends ChangeNotifier {
   static const _kFavorites = 'session.favorites';
   static const _kCart = 'session.cart';
 
-  bool _ready = false;
+  final Completer<void> _readyCompleter = Completer();
   UserRole _role = UserRole.buyer;
   String _sellerPhone = '';
   final Set<String> _favorites = <String>{};
   final List<Map<String, dynamic>> _cart = <Map<String, dynamic>>[];
 
-  bool get ready => _ready;
+  Future<void> get ready => _readyCompleter.future;
   UserRole get role => _role;
   String get sellerPhone => _sellerPhone;
   Set<String> get favorites => Set.unmodifiable(_favorites);
@@ -47,7 +47,7 @@ class AppSession extends ChangeNotifier {
         ..clear()
         ..addAll(cartJson.map(_decodeMap).whereType<Map<String, dynamic>>());
     } finally {
-      _ready = true;
+      _readyCompleter.complete();
       notifyListeners();
     }
   }

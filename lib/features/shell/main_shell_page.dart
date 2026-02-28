@@ -31,9 +31,15 @@ class _MainShellPageState extends State<MainShellPage> {
     ];
 
     return Scaffold(
-      body: session.ready
-          ? IndexedStack(index: _index, children: tabs)
-          : const Center(child: CircularProgressIndicator()),
+      body: FutureBuilder(
+        future: context.watch<AppSession>().ready,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done) {
+            return IndexedStack(index: _index, children: tabs);
+          }
+          return const Center(child: CircularProgressIndicator());
+        },
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),

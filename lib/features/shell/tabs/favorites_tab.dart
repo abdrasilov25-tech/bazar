@@ -76,132 +76,138 @@ class _FavoritesTabState extends State<FavoritesTab> {
       appBar: AppBar(title: const Text('Избранное')),
       body: RefreshIndicator(
         onRefresh: _load,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: !session.ready
-              ? const Center(child: CircularProgressIndicator())
-              : session.favorites.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 24),
-                        Text(
-                          'Пока пусто',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-                        ),
-                        SizedBox(height: 6),
-                        Text('Добавляйте товары в избранное, чтобы не потерять.'),
-                      ],
-                    )
-                  : _loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _error != null
-                          ? ListView(
-                              children: [
-                                const SizedBox(height: 24),
-                                Text('Ошибка: $_error',
-                                    style: const TextStyle(color: Colors.red)),
-                                const SizedBox(height: 10),
-                                ElevatedButton(
-                                  onPressed: _load,
-                                  child: const Text('Повторить'),
-                                ),
-                              ],
-                            )
-                          : ListView.separated(
-                              itemCount: _products.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (context, index) {
-                                final p = _products[index];
-                                return InkWell(
-                                  borderRadius: BorderRadius.circular(16),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            ProductDetailsPage(product: p),
-                                      ),
-                                    );
-                                  },
-                                  child: Card(
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Row(
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(14),
-                                            child: (p.mediaUrl.trim().isEmpty ||
-                                                    p.mediaType != 'image')
-                                                ? Image.asset(
-                                                    'assets/icons/fruits.png',
-                                                    width: 64,
-                                                    height: 64,
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : Image.network(
-                                                    p.mediaUrl,
-                                                    width: 64,
-                                                    height: 64,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (context, error,
-                                                            stackTrace) =>
-                                                        Image.asset(
-                                                      'assets/icons/fruits.png',
-                                                      width: 64,
-                                                      height: 64,
-                                                      fit: BoxFit.cover,
-                                                    ),
-                                                  ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  p.title,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                      fontWeight: FontWeight.w800),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  '${p.price} тг',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w800,
-                                                    color: Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          IconButton(
-                                            onPressed: () {
-                                              context
-                                                  .read<AppSession>()
-                                                  .toggleFavorite(p.id);
-                                            },
-                                            icon: Icon(
-                                              session.isFavorite(p.id)
-                                                  ? Icons.favorite
-                                                  : Icons.favorite_border,
-                                              color: session.isFavorite(p.id)
-                                                  ? Colors.red
-                                                  : Colors.black45,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+        child: FutureBuilder(
+          future: session.ready,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (session.favorites.isEmpty) {
+              return ListView(
+                children: const [
+                  SizedBox(height: 24),
+                  Text(
+                    'Пока пусто',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+                  ),
+                  SizedBox(height: 6),
+                  Text('Добавляйте товары в избранное, чтобы не потерять.'),
+                ],
+              );
+            }
+            if (_loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (_error != null) {
+              return ListView(
+                children: [
+                  const SizedBox(height: 24),
+                  Text('Ошибка: $_error',
+                      style: const TextStyle(color: Colors.red)),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: _load,
+                    child: const Text('Повторить'),
+                  ),
+                ],
+              );
+            }
+            return ListView.separated(
+              itemCount: _products.length,
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final p = _products[index];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ProductDetailsPage(product: p),
+                      ),
+                    );
+                  },
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: (p.mediaUrl.trim().isEmpty ||
+                                    p.mediaType != 'image')
+                                ? Image.asset(
+                                    'assets/icons/fruits.png',
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Image.network(
+                                    p.mediaUrl,
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error,
+                                            stackTrace) =>
+                                        Image.asset(
+                                      'assets/icons/fruits.png',
+                                      width: 64,
+                                      height: 64,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
-                                );
-                              },
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${p.price} тг',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              context
+                                  .read<AppSession>()
+                                  .toggleFavorite(p.id);
+                            },
+                            icon: Icon(
+                              session.isFavorite(p.id)
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: session.isFavorite(p.id)
+                                  ? Colors.red
+                                  : Colors.black45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     );

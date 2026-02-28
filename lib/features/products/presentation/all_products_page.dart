@@ -57,9 +57,9 @@ class _AllProductsPageState extends State<AllProductsPage> {
         _products = list;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, s) {
       setState(() {
-        _error = e.toString();
+        _error = '$e\n$s';
         _isLoading = false;
       });
     }
@@ -358,12 +358,12 @@ class _AllProductsPageState extends State<AllProductsPage> {
                   ? ListView(
                       children: [
                         const SizedBox(height: 24),
-                        Text(
+                        SelectableText(
                           'Ошибка загрузки товаров:\n$_error',
                           style: const TextStyle(color: Colors.red),
                         ),
                         const SizedBox(height: 12),
-                        const Text(
+                        const SelectableText(
                           "Проверь, что в Supabase есть таблица 'products' с колонками:\n"
                           "title (text), price (int), description (text), category (text), "
                           "media_url (text), media_type (text), seller_phone (text), created_at (timestamp).",
@@ -481,7 +481,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                               ),
                                             ),
                                           ],
-                                          const SizedBox(height: 10),
+                                          const SizedBox(height: 8),
                                           SizedBox(
                                             width: double.infinity,
                                             child: OutlinedButton(

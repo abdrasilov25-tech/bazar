@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,17 +17,33 @@ import 'core/theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔹 Загружаем .env
+  // 🔹 Восстановление .env из резервной копии, если основного файла нет
+  if (!File('.env').existsSync() && File('.env.backup').existsSync()) {
+    File('.env.backup').copySync('.env');
+    debugPrint(".env не найден. Восстановлено из .env.backup");
+  }
+
+  // 🔹 Загружаем .env (относительный путь, ищет .env в корне проекта)
   try {
-   await dotenv.load(fileName: "/Users/beksultanbekmurzaev/flutter.project/bazar/.env"); // .env должен быть в корне проекта рядом с pubspec.yaml
+    await dotenv.load();
+    debugPrint(".env успешно загружен");
   } catch (e) {
     debugPrint("Не удалось загрузить .env: $e");
   }
 
+  // 🔹 Логирование всех ключей в debug-режиме
+  if (kDebugMode) {
+    debugPrint("Все ключи .env:");
+    dotenv.env.forEach((key, value) {
+      debugPrint("$key = $value");
+    });
+  }
+
+  // 🔹 Получаем ключи Supabase
   final supabaseUrl = dotenv.env['SUPABASE_URL'];
   final supabaseKey = dotenv.env['SUPABASE_ANON_KEY'];
 
-  // 🔹 Проверка ключей
+  // 🔹 Если ключи пустые — показываем экран ошибки
   if (supabaseUrl == null || supabaseKey == null) {
     runApp(
       MaterialApp(
@@ -34,6 +52,7 @@ Future<void> main() async {
             child: Text(
               'Ошибка: .env не найден или ключи пустые',
               style: const TextStyle(color: Colors.red, fontSize: 20),
+              textAlign: TextAlign.center,
             ),
           ),
         ),
@@ -42,36 +61,78 @@ Future<void> main() async {
     return;
   }
 
-  // 🔹 Инициализация Supabase
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseKey,
-  );
+  // 🔹 Функция для безопасного запуска приложения
+  void runSafeApp(Widget app) {
+    try {
+      runApp(app);
+    } catch (e, stack) {
+      debugPrint("Ошибка при запуске приложения: $e");
+      debugPrintStack(stackTrace: stack);
+      runApp(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: Text(
+                'Произошла ошибка при запуске приложения',
+                style: const TextStyle(color: Colors.red, fontSize: 20),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
-  // 🔹 Репозиторий и UseCase для Bloc
-  final repository = MarketRepositoryImpl();
-  final useCase = GetMarketCategories(repository);
+  // 🔹 Основная инициализация Supabase и Bloc
+  try {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseKey,
+    );
 
-  runApp(MyApp(useCase: useCase));
+    final repository = MarketRepositoryImpl();
+    final useCase = GetMarketCategories(repository);
+
+    final appSession = AppSession();
+    await appSession.ready;
+
+    runSafeApp(MyApp(useCase: useCase, session: appSession));
+  } catch (e, stack) {
+    debugPrint("Ошибка инициализации Supabase или Bloc: $e");
+    debugPrintStack(stackTrace: stack);
+    runSafeApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Text(
+              'Произошла ошибка при инициализации приложения',
+              style: const TextStyle(color: Colors.red, fontSize: 20),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
   final GetMarketCategories useCase;
+  final AppSession session;
 
-  const MyApp({super.key, required this.useCase});
+  const MyApp({super.key, required this.useCase, required this.session});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AppSession(),
+    return ChangeNotifierProvider.value(
+      value: session,
       child: BlocProvider(
         create: (_) => MarketCubit(useCase),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
+          theme: AppTheme.light(),
           onGenerateRoute: AppRouter.generateRoute,
-          // Для проверки Supabase можно временно поставить:
-          // home: Scaffold(body: Center(child: Text('Supabase ready!'))),
           initialRoute: '/',
         ),
       ),
