@@ -397,7 +397,7 @@ try {
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            childAspectRatio: 0.62,
+                            childAspectRatio: 1.0,
                           ),
                           itemBuilder: (context, index) {
                             final session = context.watch<AppSession>();
@@ -455,7 +455,10 @@ try {
                                       ),
                                         ),
                                       Padding(
-                                      padding: const EdgeInsets.all(10),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 6,
+                                      ),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
@@ -465,34 +468,30 @@ try {
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.w800,
+                                              fontSize: 13,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 2),
                                           Text(
                                             '${p.price} тг',
                                             style: TextStyle(
                                               fontWeight: FontWeight.w800,
+                                              fontSize: 14,
                                               color: Theme.of(context)
                                                   .colorScheme
                                                   .primary,
                                             ),
                                           ),
-                                          if (p.description.trim().isNotEmpty) ...[
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              p.description,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                color: Colors.black54,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 6),
                                           SizedBox(
                                             width: double.infinity,
                                             child: OutlinedButton(
+                                              style: OutlinedButton.styleFrom(
+                                                padding: const EdgeInsets.symmetric(
+                                                  vertical: 6,
+                                                ),
+                                                visualDensity: VisualDensity.compact,
+                                              ),
                                               onPressed: p.sellerPhone.trim().isEmpty
                                                   ? null
                                                   : () async {
@@ -513,7 +512,7 @@ try {
                                                         );
                                                       }
                                                     },
-                                              child: const Text('WhatsApp'),
+                                              child: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
                                             ),
                                           ),
                                         ],
