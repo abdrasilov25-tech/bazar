@@ -202,51 +202,55 @@ class _AllProductsPageState extends State<AllProductsPage> {
                               if (picked == null) return;
 
                               setModalState(() => isUploading = true);
-                              try {
-                                final bytes = await picked.readAsBytes();
-                                final ext = picked.name.split('.').last.toLowerCase();
-                                final contentType =
-                                    (ext == 'png') ? 'image/png' : 'image/jpeg';
+try {
+  final bytes = await picked.readAsBytes();
+  final ext = picked.name.split('.').last.toLowerCase();
+  final contentType =
+      (ext == 'png') ? 'image/png' : 'image/jpeg';
 
-                                final objectPath =
-                                    'products/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
+  final objectPath =
+      'products/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
 
-                                await _supabase.storage
-                                    .from('product-media')
-                                    .uploadBinary(
-                                      objectPath,
-                                      bytes,
-                                      fileOptions: FileOptions(
-                                        contentType: contentType,
-                                      ),
-                                    );
+  // Загружаем бинарник в storage
+  await _supabase.storage
+      .from('product-media')
+      .uploadBinary(
+        objectPath,
+        bytes,
+        fileOptions: FileOptions(
+          contentType: contentType,
+        ),
+      );
 
-                                final publicUrl = _supabase.storage
-                                    .from('product-media')
-                                    .getPublicUrl(objectPath);
+  // Публичный URL для отображения фото (bucket должен быть public + политики в supabase_setup.sql)
+  final publicUrl = _supabase.storage
+      .from('product-media')
+      .getPublicUrl(objectPath)
+      .trim();
 
-                                mediaUrlController.text = publicUrl;
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Фото загружено'),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (ctx.mounted) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Ошибка загрузки фото: $e\n"
-                                        "Проверь bucket 'product-media' в Supabase Storage (лучше сделать public).",
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } finally {
-                                setModalState(() => isUploading = false);
-                              }
+  mediaUrlController.text = publicUrl;
+
+  if (ctx.mounted) {
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      const SnackBar(
+        content: Text('Фото загружено'),
+      ),
+    );
+  }
+} catch (e) {
+  if (ctx.mounted) {
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Ошибка загрузки фото: $e\n"
+          "Проверь bucket 'product-media' в Supabase Storage (лучше сделать public).",
+        ),
+      ),
+    );
+  }
+} finally {
+  setModalState(() => isUploading = false);
+}
                             },
                       icon: isUploading
                           ? const SizedBox(
@@ -292,45 +296,49 @@ class _AllProductsPageState extends State<AllProductsPage> {
   }
 
   Widget _buildMedia(Product p) {
-    final url = p.mediaUrl.trim();
-    final isImage = (p.mediaType == 'image');
-    final isVideo = (p.mediaType == 'video');
+  final url = p.mediaUrl.trim();
+  final isImage = p.mediaType == 'image';
+  final isVideo = p.mediaType == 'video';
 
-    if (url.isEmpty) {
-      return Image.asset(
-        'assets/icons/fruits.png',
-        fit: BoxFit.cover,
-      );
-    }
-
-    if (isImage) {
-      return Image.network(
-        url,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Image.asset(
-          'assets/icons/fruits.png',
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    if (isVideo) {
-      return InkWell(
-        onTap: () => _openExternal(url),
-        child: Container(
-          color: Colors.black12,
-          child: const Center(
-            child: Icon(Icons.play_circle_outline, size: 48),
-          ),
-        ),
-      );
-    }
-
-    return Image.asset(
-      'assets/icons/fruits.png',
-      fit: BoxFit.cover,
+  // Если URL пустой
+  if (url.isEmpty) {
+    return const Center(
+      child: Icon(Icons.image_not_supported, size: 40),
     );
   }
+
+  // Если это изображение
+  if (isImage) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(child: CircularProgressIndicator());
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return const Center(
+          child: Icon(Icons.broken_image, size: 40, color: Colors.red),
+        );
+      },
+    );
+  }
+
+  // Если это видео
+  if (isVideo) {
+    return InkWell(
+      onTap: () => _openExternal(url),
+      child: Container(
+        color: Colors.black12,
+        child: const Center(
+          child: Icon(Icons.play_circle_outline, size: 48),
+        ),
+      ),
+    );
+  }
+
+  return const SizedBox.shrink();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -445,8 +453,8 @@ class _AllProductsPageState extends State<AllProductsPage> {
                                           ],
                                         ),
                                       ),
-                                    ),
-                                    Padding(
+                                        ),
+                                      Padding(
                                       padding: const EdgeInsets.all(10),
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -23,20 +23,26 @@ Future<void> main() async {
     debugPrint(".env не найден. Восстановлено из .env.backup");
   }
 
-  // 🔹 Загружаем .env (относительный путь, ищет .env в корне проекта)
+  // 🔹 Загружаем .env из assets (нужно для iOS/релиза)
+  bool envLoaded = false;
   try {
-    await dotenv.load();
+    await dotenv.load(fileName: ".env");
+    envLoaded = true;
     debugPrint(".env успешно загружен");
   } catch (e) {
     debugPrint("Не удалось загрузить .env: $e");
   }
 
-  // 🔹 Логирование всех ключей в debug-режиме
-  if (kDebugMode) {
-    debugPrint("Все ключи .env:");
-    dotenv.env.forEach((key, value) {
-      debugPrint("$key = $value");
-    });
+  // 🔹 Логирование всех ключей в debug-режиме (только если .env загружен)
+  if (kDebugMode && envLoaded) {
+    try {
+      debugPrint("Все ключи .env:");
+      dotenv.env.forEach((key, value) {
+        debugPrint("$key = $value");
+      });
+    } catch (e) {
+      debugPrint("Не удалось вывести ключи .env: $e");
+    }
   }
 
   // 🔹 Получаем ключи Supabase

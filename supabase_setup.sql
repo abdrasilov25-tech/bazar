@@ -31,7 +31,22 @@ on public.products
 for insert
 with check (true);
 
--- Storage:
--- Create bucket 'product-media' in Supabase Storage (recommended: public),
--- so the app can upload an image and then display it via public URL.
+-- Storage: bucket для фото товаров (публичный, чтобы URL отображались в приложении)
+insert into storage.buckets (id, name, public)
+values ('product-media', 'product-media', true)
+on conflict (id) do update set public = true;
+
+-- Политика: любой может читать файлы из product-media (иначе фото не отображаются)
+drop policy if exists "Public read product-media" on storage.objects;
+create policy "Public read product-media"
+on storage.objects for select
+to public
+using (bucket_id = 'product-media');
+
+-- Политика: разрешить загрузку в product-media (для добавления фото товаров)
+drop policy if exists "Public insert product-media" on storage.objects;
+create policy "Public insert product-media"
+on storage.objects for insert
+to public
+with check (bucket_id = 'product-media');
 

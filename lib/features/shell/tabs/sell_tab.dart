@@ -110,8 +110,10 @@ class _SellTabState extends State<SellTab> {
             fileOptions: FileOptions(contentType: contentType),
           );
 
-      final publicUrl =
-          _supabase.storage.from('product-media').getPublicUrl(objectPath);
+      final publicUrl = _supabase.storage
+          .from('product-media')
+          .getPublicUrl(objectPath)
+          .trim();
       _mediaUrlController.text = publicUrl;
     } catch (e) {
       if (!mounted) return;
