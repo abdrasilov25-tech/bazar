@@ -104,7 +104,7 @@ class _AllProductsPageState extends State<AllProductsPage> {
           category: widget.categoryName,
           mediaUrl: mediaUrl,
           mediaType: mediaType,
-          sellerPhone: session.sellerPhone,
+          sellerPhone: session.sellerPhone.trim(),
         );
 
         await _supabase.from('products').insert(product.toInsertMap());
@@ -202,55 +202,54 @@ class _AllProductsPageState extends State<AllProductsPage> {
                               if (picked == null) return;
 
                               setModalState(() => isUploading = true);
-try {
-  final bytes = await picked.readAsBytes();
-  final ext = picked.name.split('.').last.toLowerCase();
-  final contentType =
-      (ext == 'png') ? 'image/png' : 'image/jpeg';
+                              try {
+                                final bytes = await picked.readAsBytes();
+                                final ext =
+                                    picked.name.split('.').last.toLowerCase();
+                                final contentType =
+                                    (ext == 'png') ? 'image/png' : 'image/jpeg';
 
-  final objectPath =
-      'products/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
+                                final objectPath =
+                                    'products/${DateTime.now().millisecondsSinceEpoch}_${picked.name}';
 
-  // Загружаем бинарник в storage
-  await _supabase.storage
-      .from('product-media')
-      .uploadBinary(
-        objectPath,
-        bytes,
-        fileOptions: FileOptions(
-          contentType: contentType,
-        ),
-      );
+                                await _supabase.storage
+                                    .from('product-media')
+                                    .uploadBinary(
+                                      objectPath,
+                                      bytes,
+                                      fileOptions: FileOptions(
+                                        contentType: contentType,
+                                      ),
+                                    );
 
-  // Публичный URL для отображения фото (bucket должен быть public + политики в supabase_setup.sql)
-  final publicUrl = _supabase.storage
-      .from('product-media')
-      .getPublicUrl(objectPath)
-      .trim();
+                                final publicUrl = _supabase.storage
+                                    .from('product-media')
+                                    .getPublicUrl(objectPath)
+                                    .trim();
 
-  mediaUrlController.text = publicUrl;
+                                mediaUrlController.text = publicUrl;
 
-  if (ctx.mounted) {
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      const SnackBar(
-        content: Text('Фото загружено'),
-      ),
-    );
-  }
-} catch (e) {
-  if (ctx.mounted) {
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(
-        content: Text(
-          "Ошибка загрузки фото: $e\n"
-          "Проверь bucket 'product-media' в Supabase Storage (лучше сделать public).",
-        ),
-      ),
-    );
-  }
-} finally {
-  setModalState(() => isUploading = false);
-}
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Фото загружено'),
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        "Ошибка загрузки фото: $e\n"
+                                        "Проверь bucket 'product-media' в Supabase Storage (лучше сделать public).",
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                setModalState(() => isUploading = false);
+                              }
                             },
                       icon: isUploading
                           ? const SizedBox(
@@ -287,6 +286,163 @@ try {
         ),
       ),
     );
+  }
+
+  Future<void> _showEditProductBottomSheet(Product existing) async {
+    final session = context.read<AppSession>();
+    if (!session.isSeller ||
+        existing.sellerPhone.trim() != session.sellerPhone.trim()) {
+      return;
+    }
+
+    final titleController = TextEditingController(text: existing.title);
+    final priceController =
+        TextEditingController(text: existing.price.toString());
+    final descriptionController =
+        TextEditingController(text: existing.description);
+
+    Future<void> save(BuildContext ctx) async {
+      final title = titleController.text.trim();
+      final price = int.tryParse(priceController.text.trim()) ?? 0;
+      final description = descriptionController.text.trim();
+
+      if (title.isEmpty || price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Введите корректные название и цену')),
+        );
+        return;
+      }
+
+      try {
+        final id = int.tryParse(existing.id) ?? existing.id;
+        await _supabase.from('products').update({
+          'title': title,
+          'price': price,
+          'description': description,
+        }).eq('id', id);
+
+        if (!ctx.mounted) return;
+        Navigator.of(ctx).pop();
+        await _load();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Товар обновлён')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Редактировать товар',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Название',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Цена (тг)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Описание',
+                  border: OutlineInputBorder(),
+                ),
+                minLines: 2,
+                maxLines: 4,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => save(ctx),
+                  child: const Text('Сохранить'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteProduct(Product p) async {
+    final session = context.read<AppSession>();
+    if (!session.isSeller ||
+        p.sellerPhone.trim() != session.sellerPhone.trim()) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Удалить товар'),
+            content: Text('Вы уверены, что хотите удалить "${p.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Удалить'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      final id = int.tryParse(p.id) ?? p.id;
+      await _supabase.from('products').delete().eq('id', id);
+      if (!mounted) return;
+      setState(() {
+        _products = _products.where((it) => it.id != p.id).toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Товар удалён')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
   }
 
   Future<void> _openExternal(String url) async {
@@ -390,140 +546,225 @@ try {
                             Center(child: Text('Нет товаров в этой категории')),
                           ],
                         )
-                      : GridView.builder(
-                          itemCount: _products.length,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 1.0,
-                          ),
-                          itemBuilder: (context, index) {
-                            final session = context.watch<AppSession>();
-                            final p = _products[index];
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => ProductDetailsPage(product: p),
-                                  ),
-                                );
-                              },
-                              child: Card(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      child: ClipRRect(
-                                        borderRadius: const BorderRadius.vertical(
-                                          top: Radius.circular(16),
-                                        ),
-                                        child: Stack(
-                                          fit: StackFit.expand,
-                                          children: [
-                                            _buildMedia(p),
-                                            Positioned(
-                                              top: 8,
-                                              right: 8,
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white.withAlpha(230),
-                                                  shape: BoxShape.circle,
+                        : GridView.builder(
+                            itemCount: _products.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 1.0,
+                            ),
+                            itemBuilder: (context, index) {
+                              final session = context.watch<AppSession>();
+                              final p = _products[index];
+                              final isOwner = session.isSeller &&
+                                  p.sellerPhone.trim() ==
+                                      session.sellerPhone.trim();
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          ProductDetailsPage(product: p),
+                                    ),
+                                  );
+                                },
+                                child: Card(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Expanded(
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              const BorderRadius.vertical(
+                                            top: Radius.circular(16),
+                                          ),
+                                          child: Stack(
+                                            fit: StackFit.expand,
+                                            children: [
+                                              _buildMedia(p),
+                                              Positioned(
+                                                top: 8,
+                                                right: 8,
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    if (isOwner)
+                                                      Container(
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                                right: 4),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white
+                                                              .withAlpha(230),
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                        child:
+                                                            PopupMenuButton<
+                                                                String>(
+                                                          padding:
+                                                              EdgeInsets.zero,
+                                                          icon: const Icon(
+                                                            Icons.more_vert,
+                                                            size: 20,
+                                                          ),
+                                                          onSelected: (value) {
+                                                            if (value ==
+                                                                'edit') {
+                                                              _showEditProductBottomSheet(
+                                                                  p);
+                                                            } else if (value ==
+                                                                'delete') {
+                                                              _deleteProduct(p);
+                                                            }
+                                                          },
+                                                          itemBuilder:
+                                                              (context) => [
+                                                            const PopupMenuItem<
+                                                                String>(
+                                                              value: 'edit',
+                                                              child: Text(
+                                                                  'Редактировать'),
+                                                            ),
+                                                            const PopupMenuItem<
+                                                                String>(
+                                                              value: 'delete',
+                                                              child: Text(
+                                                                  'Удалить'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    Container(
+                                                      decoration:
+                                                          BoxDecoration(
+                                                        color: Colors.white
+                                                            .withAlpha(230),
+                                                        shape:
+                                                            BoxShape.circle,
+                                                      ),
+                                                      child: IconButton(
+                                                        visualDensity:
+                                                            VisualDensity
+                                                                .compact,
+                                                        iconSize: 20,
+                                                        onPressed: () => context
+                                                            .read<AppSession>()
+                                                            .toggleFavorite(
+                                                                p.id),
+                                                        icon: Icon(
+                                                          session.isFavorite(
+                                                                  p.id)
+                                                              ? Icons.favorite
+                                                              : Icons
+                                                                  .favorite_border,
+                                                          color: session
+                                                                  .isFavorite(
+                                                                      p.id)
+                                                              ? Colors.red
+                                                              : Colors
+                                                                  .black45,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
-                                                child: IconButton(
-                                                  visualDensity: VisualDensity.compact,
-                                                  iconSize: 20,
-                                                  onPressed: () => context
-                                                      .read<AppSession>()
-                                                      .toggleFavorite(p.id),
-                                                  icon: Icon(
-                                                    session.isFavorite(p.id)
-                                                        ? Icons.favorite
-                                                        : Icons.favorite_border,
-                                                    color: session.isFavorite(p.id)
-                                                        ? Colors.red
-                                                        : Colors.black45,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 6,
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              p.title,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${p.price} тг',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 14,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: OutlinedButton(
+                                                style: OutlinedButton.styleFrom(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    vertical: 6,
                                                   ),
+                                                  visualDensity:
+                                                      VisualDensity.compact,
+                                                ),
+                                                onPressed: p.sellerPhone
+                                                        .trim()
+                                                        .isEmpty
+                                                    ? null
+                                                    : () async {
+                                                        try {
+                                                          await openWhatsApp(
+                                                            phone:
+                                                                p.sellerPhone,
+                                                            text:
+                                                                'Здравствуйте! Интересует товар: ${p.title} (${p.price} тг)',
+                                                          );
+                                                        } catch (e) {
+                                                          if (!context
+                                                              .mounted) {
+                                                            return;
+                                                          }
+                                                          ScaffoldMessenger.of(
+                                                                  context)
+                                                              .showSnackBar(
+                                                            SnackBar(
+                                                              content: Text(
+                                                                  'Не удалось открыть WhatsApp: $e'),
+                                                            ),
+                                                          );
+                                                        }
+                                                      },
+                                                child: const Text(
+                                                  'WhatsApp',
+                                                  style:
+                                                      TextStyle(fontSize: 12),
                                                 ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                        ),
-                                      Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 6,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            p.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            '${p.price} тг',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 14,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: OutlinedButton(
-                                              style: OutlinedButton.styleFrom(
-                                                padding: const EdgeInsets.symmetric(
-                                                  vertical: 6,
-                                                ),
-                                                visualDensity: VisualDensity.compact,
-                                              ),
-                                              onPressed: p.sellerPhone.trim().isEmpty
-                                                  ? null
-                                                  : () async {
-                                                      try {
-                                                        await openWhatsApp(
-                                                          phone: p.sellerPhone,
-                                                          text:
-                                                              'Здравствуйте! Интересует товар: ${p.title} (${p.price} тг)',
-                                                        );
-                                                      } catch (e) {
-                                                        if (!context.mounted) return;
-                                                        ScaffoldMessenger.of(context)
-                                                            .showSnackBar(
-                                                          SnackBar(
-                                                            content: Text(
-                                                                'Не удалось открыть WhatsApp: $e'),
-                                                          ),
-                                                        );
-                                                      }
-                                                    },
-                                              child: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              );
+                            },
+                          ),
         ),
       ),
     );

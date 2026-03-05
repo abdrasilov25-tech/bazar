@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -13,6 +14,7 @@ import 'features/home/presentation/cubit/market_cubit.dart';
 import 'core/routes/app_router.dart';
 import 'core/state/app_session.dart';
 import 'core/theme/app_theme.dart';
+import 'core/localization/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -140,6 +142,13 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.light(),
           onGenerateRoute: AppRouter.generateRoute,
           initialRoute: '/',
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
         ),
       ),
     );

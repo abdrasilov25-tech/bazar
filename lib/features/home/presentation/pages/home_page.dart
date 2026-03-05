@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:bazar/core/state/app_session.dart';
 import 'package:bazar/features/home/presentation/cubit/market_cubit.dart';
+import 'package:bazar/core/localization/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,27 +38,19 @@ class _HomePageState extends State<HomePage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final phone = context.read<AppSession>().sellerPhone.trim();
-    if (phone != _loadedRecommendedPhone) {
-      _loadedRecommendedPhone = phone;
+    if (_loadedRecommendedPhone != 'loaded') {
+      _loadedRecommendedPhone = 'loaded';
       _loadRecommended();
     }
   }
 
   Future<void> _loadRecommended() async {
-    final session = context.read<AppSession>();
-    final phone = session.sellerPhone.trim();
-    if (phone.isEmpty) {
-      if (mounted) setState(() => _recommended = []);
-      return;
-    }
     if (!mounted) return;
     setState(() => _recommendedLoading = true);
     try {
       final rows = await Supabase.instance.client
           .from('products')
           .select()
-          .eq('seller_phone', phone)
           .order('created_at', ascending: false)
           .limit(20);
       if (!mounted) return;
@@ -85,6 +78,159 @@ class _HomePageState extends State<HomePage> {
 
   static const double _categorySize = 64.0;
   static const double _categoryColumnWidth = 80.0;
+
+  Future<void> _showEditProductBottomSheet(Product existing) async {
+    final session = context.read<AppSession>();
+    if (!session.isSeller || existing.sellerPhone.trim() != session.sellerPhone.trim()) {
+      return;
+    }
+
+    final titleController = TextEditingController(text: existing.title);
+    final priceController = TextEditingController(text: existing.price.toString());
+    final descriptionController = TextEditingController(text: existing.description);
+
+    Future<void> save(BuildContext ctx) async {
+      final title = titleController.text.trim();
+      final price = int.tryParse(priceController.text.trim()) ?? 0;
+      final description = descriptionController.text.trim();
+
+      if (title.isEmpty || price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Введите корректные название и цену')),
+        );
+        return;
+      }
+
+      try {
+        final id = int.tryParse(existing.id) ?? existing.id;
+        await Supabase.instance.client.from('products').update({
+          'title': title,
+          'price': price,
+          'description': description,
+        }).eq('id', id);
+
+        if (!ctx.mounted) return;
+        Navigator.of(ctx).pop();
+        await _loadRecommended();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Товар обновлён')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Редактировать товар',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Название',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Цена (тг)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Описание',
+                  border: OutlineInputBorder(),
+                ),
+                minLines: 2,
+                maxLines: 4,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => save(ctx),
+                  child: const Text('Сохранить'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _deleteProduct(Product p) async {
+    final session = context.read<AppSession>();
+    if (!session.isSeller || p.sellerPhone.trim() != session.sellerPhone.trim()) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Удалить товар'),
+            content: Text('Вы уверены, что хотите удалить "${p.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Удалить'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      final id = int.tryParse(p.id) ?? p.id;
+      await Supabase.instance.client.from('products').delete().eq('id', id);
+      if (!mounted) return;
+      setState(() {
+        _recommended = _recommended.where((it) => it.id != p.id).toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Товар удалён')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
+  }
 
   Widget _buildRoundCategory(MarketCategory c) {
     return Padding(
@@ -130,6 +276,8 @@ class _HomePageState extends State<HomePage> {
   Widget _buildRecommendedProductCard(Product p) {
     final session = context.watch<AppSession>();
     final url = p.mediaUrl.trim();
+    final isOwner =
+        session.isSeller && p.sellerPhone.trim() == session.sellerPhone.trim();
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
@@ -171,15 +319,56 @@ class _HomePageState extends State<HomePage> {
                   Positioned(
                     top: 6,
                     right: 6,
-                    child: GestureDetector(
-                      onTap: () => context.read<AppSession>().toggleFavorite(p.id),
-                      child: Icon(
-                        session.isFavorite(p.id)
-                            ? Icons.favorite
-                            : Icons.favorite_border,
-                        color: session.isFavorite(p.id) ? Colors.red : Colors.white,
-                        size: 22,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isOwner)
+                          Container(
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.45),
+                              shape: BoxShape.circle,
+                            ),
+                            child: PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(
+                                Icons.more_vert,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _showEditProductBottomSheet(p);
+                                } else if (value == 'delete') {
+                                  _deleteProduct(p);
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem<String>(
+                                  value: 'edit',
+                                  child: Text('Редактировать'),
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: 'delete',
+                                  child: Text('Удалить'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        GestureDetector(
+                          onTap: () =>
+                              context.read<AppSession>().toggleFavorite(p.id),
+                          child: Icon(
+                            session.isFavorite(p.id)
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: session.isFavorite(p.id)
+                                ? Colors.red
+                                : Colors.white,
+                            size: 22,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -220,11 +409,17 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final session = context.watch<AppSession>();
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Bazar"),
+        title: Text(loc.t('app.title')),
         actions: [
-          if (session.isSeller)
+          if (session.isSeller) ...[
+            IconButton(
+              tooltip: 'Обновить мои товары',
+              icon: const Icon(Icons.refresh),
+              onPressed: _recommendedLoading ? null : _loadRecommended,
+            ),
             Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -241,7 +436,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'Продавец',
+                    loc.t('role.seller'),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w600,
@@ -250,8 +445,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-            )
-          else
+            ),
+          ] else
             Container(
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -259,13 +454,14 @@ class _HomePageState extends State<HomePage> {
                 color: const Color(0xFFF4F5F7),
                 borderRadius: BorderRadius.circular(999),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.person_outline, size: 16, color: Colors.black54),
-                  SizedBox(width: 6),
+                  const Icon(Icons.person_outline,
+                      size: 16, color: Colors.black54),
+                  const SizedBox(width: 6),
                   Text(
-                    'Покупатель',
-                    style: TextStyle(
+                    loc.t('role.buyer'),
+                    style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
@@ -295,9 +491,9 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         TextField(
                           controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: 'Поиск в Bazar',
-                            prefixIcon: Icon(Icons.search_outlined),
+                          decoration: InputDecoration(
+                            hintText: loc.t('home.search'),
+                            prefixIcon: const Icon(Icons.search_outlined),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -325,7 +521,7 @@ class _HomePageState extends State<HomePage> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'Найдите товары рядом и пишите продавцу в WhatsApp',
+                                  loc.t('home.banner'),
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium
@@ -337,7 +533,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Категории',
+                          loc.t('home.categories'),
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
@@ -387,7 +583,7 @@ class _HomePageState extends State<HomePage> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                     child: Text(
-                      'Рекомендовано вам',
+                      loc.t('home.recommended'),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -406,9 +602,7 @@ class _HomePageState extends State<HomePage> {
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                               child: Text(
-                                session.sellerPhone.trim().isEmpty
-                                    ? 'Включите режим продавца в профиле — здесь появятся ваши объявления.'
-                                    : 'Пока нет ваших объявлений.',
+                                loc.t('home.recommended.empty.noAds'),
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 14,

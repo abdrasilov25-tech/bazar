@@ -1,0 +1,11 @@
+{
+  "app.title": "Bazar",
+  "home.search": "Поиск в Bazar",
+  "home.banner": "Найдите товары рядом и пишите продавцу в WhatsApp",
+  "home.categories": "Категории",
+  "home.recommended": "Рекомендовано вам",
+  "home.recommended.empty.noSeller": "Включите режим продавца в профиле — здесь появятся ваши объявления.",
+  "home.recommended.empty.noAds": "Пока нет ваших объявлений.",
+  "role.seller": "Продавец",
+  "role.buyer": "Покупатель"
+}

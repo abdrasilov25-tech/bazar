@@ -29,6 +29,164 @@ class _SellTabState extends State<SellTab> {
   String _mediaType = 'image';
   bool _uploading = false;
 
+  Future<void> _deleteAd(Product p) async {
+    final session = context.read<AppSession>();
+    if (!session.isSeller ||
+        p.sellerPhone.trim() != session.sellerPhone.trim()) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Удалить объявление'),
+            content:
+                Text('Вы уверены, что хотите удалить объявление "${p.title}"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Отмена'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Удалить'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      final id = int.tryParse(p.id) ?? p.id;
+      await _supabase.from('products').delete().eq('id', id);
+      if (!mounted) return;
+      setState(() {
+        _myAds = _myAds.where((it) => it.id != p.id).toList();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Объявление удалено')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка: $e')),
+      );
+    }
+  }
+
+  Future<void> _editAd(Product existing) async {
+    final session = context.read<AppSession>();
+    if (!session.isSeller ||
+        existing.sellerPhone.trim() != session.sellerPhone.trim()) {
+      return;
+    }
+
+    final titleController = TextEditingController(text: existing.title);
+    final priceController =
+        TextEditingController(text: existing.price.toString());
+    final descriptionController =
+        TextEditingController(text: existing.description);
+
+    Future<void> save(BuildContext ctx) async {
+      final title = titleController.text.trim();
+      final price = int.tryParse(priceController.text.trim()) ?? 0;
+      final description = descriptionController.text.trim();
+
+      if (title.isEmpty || price <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Введите корректные название и цену')),
+        );
+        return;
+      }
+
+      try {
+        final id = int.tryParse(existing.id) ?? existing.id;
+        await _supabase.from('products').update({
+          'title': title,
+          'price': price,
+          'description': description,
+        }).eq('id', id);
+
+        if (!ctx.mounted) return;
+        Navigator.of(ctx).pop();
+        await _loadMyAds();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Объявление обновлено')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+      }
+    }
+
+    if (!mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+          left: 16,
+          right: 16,
+          top: 16,
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Редактировать объявление',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Название',
+                  border: OutlineInputBorder(),
+                ),
+                autofocus: true,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(
+                  labelText: 'Цена (тг)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Описание',
+                  border: OutlineInputBorder(),
+                ),
+                minLines: 2,
+                maxLines: 4,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => save(ctx),
+                  child: const Text('Сохранить'),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -166,7 +324,7 @@ class _SellTabState extends State<SellTab> {
         category: category,
         mediaUrl: mediaUrl,
         mediaType: _mediaType,
-        sellerPhone: session.sellerPhone,
+        sellerPhone: session.sellerPhone.trim(),
       );
 
       await _supabase.from('products').insert(p.toInsertMap());
@@ -335,18 +493,36 @@ class _SellTabState extends State<SellTab> {
                         ),
                       );
                     },
-                    child: Card(
-                      child: ListTile(
-                        title: Text(
-                          p.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                      child: Card(
+                        child: ListTile(
+                          title: Text(
+                            p.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          subtitle: Text('${p.price} тг'),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _editAd(p);
+                              } else if (value == 'delete') {
+                                _deleteAd(p);
+                              }
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem<String>(
+                                value: 'edit',
+                                child: Text('Редактировать'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Text('Удалить'),
+                              ),
+                            ],
+                          ),
                         ),
-                        subtitle: Text('${p.price} тг'),
-                        trailing: const Icon(Icons.chevron_right),
                       ),
-                    ),
                   ),
                 );
               }),

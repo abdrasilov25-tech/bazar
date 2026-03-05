@@ -1,0 +1,11 @@
+{
+  "app.title": "Bazar",
+  "home.search": "Bazar ішінде іздеу",
+  "home.banner": "Жақын жердегі тауарларды тауып, сатушыға WhatsApp арқылы жазыңыз",
+  "home.categories": "Санаттар",
+  "home.recommended": "Сізге ұсынылған",
+  "home.recommended.empty.noSeller": "Профильде сатушы режимін қосыңыз — сіздің хабарландыруларыңыз осында көрсетіледі.",
+  "home.recommended.empty.noAds": "Әзірге сіздің хабарландыруларыңыз жоқ.",
+  "role.seller": "Сатушы",
+  "role.buyer": "Сатып алушы"
+}

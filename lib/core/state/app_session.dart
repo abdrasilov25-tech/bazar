@@ -83,7 +83,7 @@ class AppSession extends ChangeNotifier {
 
   void setSeller({required String phone}) {
     _role = UserRole.seller;
-    _sellerPhone = phone;
+    _sellerPhone = phone.trim();
     _persistLater();
     notifyListeners();
   }

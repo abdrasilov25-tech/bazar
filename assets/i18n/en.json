@@ -1,0 +1,11 @@
+{
+  "app.title": "Bazar",
+  "home.search": "Search in Bazar",
+  "home.banner": "Find products near you and message the seller on WhatsApp",
+  "home.categories": "Categories",
+  "home.recommended": "Recommended for you",
+  "home.recommended.empty.noSeller": "Enable seller mode in your profile — your listings will appear here.",
+  "home.recommended.empty.noAds": "You don't have any listings yet.",
+  "role.seller": "Seller",
+  "role.buyer": "Buyer"
+}
